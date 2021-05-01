@@ -58,13 +58,15 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
       dummy_particle.theta  = gaussian_theta(gen);
 
       // initalizing weight to 1 
-      dummy_particle.weight = 1;
+      //dummy_particle.weight = 1;
 
 
       // save the particle 
       particles.push_back(dummy_particle);
 
       weights.push_back(1); // initialize all weights to 1 
+
+      is_initialized = true;
   }
 }
 
@@ -120,14 +122,17 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   probably find it useful to implement this method and use it as a helper 
    *   during the updateWeights phase.
    */
+    // this function will be called for one particle
 
     // predicted   : prediction measurment between one particular particle and all of the map landmarks (what actually the landmark lies on map)
 
     // observation : actual measurment gatherd from lidar,  transformed sensor measurment to the map coordinate (by particle)
+    // observation : vehicle's on board sensor readings of nearby landmarks 
     double minimum_dist = 0.0;
     double minimum_dist_index = 0;
     for (int i = 0; i < observations.size(); i++) {
 
+        // calculate the distance between measurment and acutal landmark 
         for (int j = 0; j < predicted.size(); j++) {
             double distance = dist(observations[i].x, observations[i].y,
                                     predicted[j].x, predicted[j].y);
@@ -140,6 +145,7 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
 
         // associate the observation with landmark 
         // observation[i] belongs to predicted[minimum_dist_index]
+        // associate observation  to map landmark (predicted) 
         observations[i].id = predicted[minimum_dist_index].id;
         
         
@@ -163,7 +169,81 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   and the following is a good resource for the actual equation to implement
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
+    // check if the land mark located with sensor range or not
+    std::vector<LandmarkObs>& predictions;
+    vector<LandmarkObs>& TOBS; // transformed observations from car frame to map frame
+    for (int i = 0; i < num_particles; i++) {
+        
+        // get the particle position 
+        double p_x = particles[i].x;
+        double p_y = particles[i].y;
+        double p_theta = particles[i].theta;
 
+        // get the predictions that in range of (sensor range)
+        for (int j = 0; j < map_landmarks.landmark_list.size(); j++) {
+
+            float landmark_x  = map_landmarks.landmark_list[j].x_f;
+            float landmark_y  = map_landmarks.landmark_list[j].y_f;
+            int   landmark_id = map_landmarks.landmark_list[j].id_i;
+
+            // check that if the landmark within the sensor range or not
+            if (fabs(landmark_x - p_x) <= sensor_range &&
+                fabs(landmark_y - p_y) <= sensor_range)
+            {
+                predictions.push_back(LandmarkObs{ landmark_id,landmark_x,landmark_y });
+            }
+
+        }
+
+
+        // transform observation from particle coordinate frame to map coordinate frame
+        
+        for (auto const& observation : observations) {
+
+            double obs_x = observation.x;
+            double obs_y = observation.y;
+            /*
+            * using transformation equations to transform from particle to map coordinate frame
+            * Xmap = Xparticle  + (cos(theta)*obs_x) - (sin(theta)*obs_y)
+            * Ymap = Yparticle  + (sin(theta)*obs_x) + (cos(theta)*obs_y)
+            */
+            double A = cos(p_theta) * obs_x;
+            double B = sin(p_theta) * obs_x;
+
+            double C = cos(p_theta) * obs_y;
+            double D = sin(p_theta) * obs_y;
+
+            double tobs_x = p_x + A - D;
+            double tobs_y = p_y + B + C;
+            TOBS.push_back(LandmarkObs{observation.id,tobs_x ,tobs_y })
+        }
+
+        // associate the transformed obesrvations (TOBS) to the nearest landmark 
+        dataAssociation(predictions, TOBS);
+
+        // calculate the weight based on observed and predicted value using multivariate Gaussian distribution
+        double weight_prob = 1.0;
+        for (int k = 0; k < TOBS.size(); k++) {
+            int obs_id = TOBS[k].id;
+            // get the id of the nearest landmark 
+            std::vector< LandmarkObs>::iterator it = std::find_if(predictions.begin(), prediction.end(),
+                [obs_id](LandmarkObs landmark) {
+                    return landmark.id == obs_id;
+                });
+            weight_prob* = multiv_prob(std_landmark[0], std_landmark[1], TOBS[k].x, TOBS[k].y,it->x, it->y);
+        }
+
+        // update the weight of the particle 
+        //particles[i].weight = weight_prob;
+        weights[i] = weight_prob;
+    }
+
+    // normalizing weights
+    double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
+    for (int i = 0; i < weights.size(); ++i)
+        weights[i] /= sum;
+
+ 
 }
 
 void ParticleFilter::resample() {

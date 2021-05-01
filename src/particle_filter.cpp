@@ -70,13 +70,43 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], 
                                 double velocity, double yaw_rate) {
-  /**
-   * TODO: Add measurements to each particle and add random Gaussian noise.
-   * NOTE: When adding noise you may find std::normal_distribution 
-   *   and std::default_random_engine useful.
-   *  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
-   *  http://www.cplusplus.com/reference/random/default_random_engine/
-   */
+    /*
+     * prediction Predicts the state for the next time step using the process model.
+     * Applying these twoo functions 
+     * x = x0 + (v/theta_dot)*[sin(theta+theta_dot*delta_t) - sin(theta)]
+     * y = y0 + (v/theta_dot)*[cos(theta) - cos(theta+theta_dot*delta_t)]
+     * theta = theta0 + theta_dot*delta_t
+     */
+
+     // to make code more readable
+    double std_x = std[0];
+    double std_y = std[1];
+    double std_theta = std[2];
+    // adding gaussian noise to velocity and yaw_rate
+    std::default_random_engine gen; // random number generator
+    // ask about this in code review 
+    std::normal_distribution<double> gaussian_x(0, std_x);
+    std::normal_distribution<double> gaussian_y(0, std_y);
+    std::normal_distribution<double> gaussian_theta(0, std_theta);
+
+    // update the position of all particles using prediction model 
+
+    for (int i = 0; i < num_particles;i++) {
+    
+        // p here stands for particle 
+        double x_0     = particles[i].x     ;
+        double y_0     = particles[i].y     ;
+        double theta_0 = particles[i].theta ;
+
+        double A    = velocity / yaw_rate; // to prevent redundeny 
+        double B    = theta_0 + (yaw_rate * delta_t); // to prevent redundeny 
+        // update position 
+        particles[i].x      = x_0 + A * (sin( B) - sin(theta_0)) + gaussian_x(gen);
+        particles[i].y      = y_0 + A * (cos(theta_0) - cos(B))  + gaussian_y(gen);
+        particles[i].theta  = B + gaussian_theta(gen);
+        
+    }   
+        
 
 }
 

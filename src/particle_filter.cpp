@@ -121,6 +121,30 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   during the updateWeights phase.
    */
 
+    // predicted   : prediction measurment between one particular particle and all of the map landmarks (what actually the landmark lies on map)
+
+    // observation : actual measurment gatherd from lidar,  transformed sensor measurment to the map coordinate (by particle)
+    double minimum_dist = 0.0;
+    double minimum_dist_index = 0;
+    for (int i = 0; i < observations.size(); i++) {
+
+        for (int j = 0; j < predicted.size(); j++) {
+            double distance = dist(observations[i].x, observations[i].y,
+                                    predicted[j].x, predicted[j].y);
+            if (distance < minimum_dist) {
+                minimum_dist = distance;
+                minimum_dist_index = j;
+            }
+                
+        }
+
+        // associate the observation with landmark 
+        // observation[i] belongs to predicted[minimum_dist_index]
+        observations[i].id = predicted[minimum_dist_index].id;
+        
+        
+    }
+
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 

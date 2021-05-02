@@ -48,7 +48,7 @@ struct LandmarkObs {
   double y;   // Local (vehicle coords) y position of landmark observation [m]
 };
 
-double multiv_prob(double sig_x, double sig_y, double x_obs, double y_obs,
+inline double multiv_prob(double sig_x, double sig_y, double x_obs, double y_obs,
     double mu_x, double mu_y) {
     // calculate normalization term
     double gauss_norm;

@@ -103,7 +103,14 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
         double y_0     = particles[i].y     ;
         double theta_0 = particles[i].theta ;
 
-        double A    = velocity / yaw_rate; // to prevent redundeny 
+        double A = 0.0;
+        if (fabs(yaw_rate) < 0.0001) {
+            A = velocity;  // use velocity only
+        }
+        else {
+            A = velocity / yaw_rate; // to prevent redundeny 
+        }
+
         double B    = theta_0 + (yaw_rate * delta_t); // to prevent redundeny 
         // update position 
         particles[i].x      = x_0 + A * (sin( B) - sin(theta_0)) + gaussian_x(gen);
@@ -131,13 +138,13 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
 
     // observation : actual measurment gatherd from lidar,  transformed sensor measurment to the map coordinate (by particle)
     // observation : vehicle's on board sensor readings of nearby landmarks 
-    double minimum_dist = std::numeric_limits<float>::max();
+
     double minimum_dist_index = 0;
     std::vector<int> associations;
     std::vector<double> sense_x;
     std::vector<double> sense_y;
     for (int i = 0; i < observations.size(); i++) {
-
+        double minimum_dist = std::numeric_limits<float>::max();
         // calculate the distance between measurment and acutal landmark 
         for (int j = 0; j < predicted.size(); j++) {
             double distance = dist(observations[i].x, observations[i].y,
@@ -245,6 +252,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         // update the weight of the particle 
         particles[i].weight = weight_prob;
         weights[i] = weight_prob;
+
+        predictions.clear();
+        TOBS.clear();
     }
 
     // normalizing weights
